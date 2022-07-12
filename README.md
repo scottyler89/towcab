@@ -219,7 +219,7 @@ These results are great! It shows us that in cluster_1, genes related to the imm
 ## A rapid interpretation for comparing two integration/batch-correction methods
 There is also a meta-analysis of pathway results is performed by comparing how similar the intersection genes are between all pathways in your input that were significantly different. This gives a graph network for which nodes are the pathways & edges connect differentially expressed pathways whose gene-lists were quite similar. This graph is then clustered based on Louvain modularity. The file titled "<out_dir>/results/pathway_degs/WInClust_AcrossBatch_DEG_pathway_meta_analysis_02.png" and should look something like this:
 
-![pathway networks](https://github.com/scottyler89/towcab/blob/main/pathway_DEGs/WInClust_AcrossBatch_DEG_pathway_meta_analysis_02.png?raw=true)
+![pathway networks](https://github.com/scottyler89/towcab/blob/main/towcab_results/results/pathway_DEGs/WInClust_AcrossBatch_DEG_pathway_meta_analysis_02.png?raw=true)
 
 The colors correspond to the pathway clusters (not the clustering of the cells!). This is just to quickly get a high-level view of which pathways are significantly different in each of the methods (in this case wcab and towcab both from the same Seurat run).
 
