@@ -238,10 +238,10 @@ print(head(collated_pathway_analyses$path_sig_res))
 
 If we want to check out these results visually, there are a few plots in the output directory as well:
 
-![quantified deg num and degree](https://github.com/scottyler89/towcab/blob/main/combined_DEG_analysis_1.png?raw=true)
+![quantified deg num and degree](https://github.com/scottyler89/towcab/blob/main/towcab_results/results/combined_DEG_analysis_1.png?raw=true)
 ![path cluster sig](https://github.com/scottyler89/towcab/blob/main/towcab_results/results/pathway_DEGs/NonTechnical_WInClust_AcrossBatch_DEG_analysis_01.png?raw=true)
-![stacked percent of clusters sig](https://github.com/scottyler89/towcab/blob/main//pathway_DEGs/NonTechnical_WInClust_AcrossBatch_DEG_analysis_02.png?raw=true)
-![stacked number of paths](https://github.com/scottyler89/towcab/blob/main/pathway_DEGs/NonTechnical_WInClust_AcrossBatch_DEG_analysis_03.png?raw=true)
+![stacked percent of clusters sig](https://github.com/scottyler89/towcab/blob/main/towcab_results/results/pathway_DEGs/NonTechnical_WInClust_AcrossBatch_DEG_analysis_02.png?raw=true)
+![stacked number of paths](https://github.com/scottyler89/towcab/blob/main/towcab_results/results/pathway_DEGs/NonTechnical_WInClust_AcrossBatch_DEG_analysis_03.png?raw=true)
 
 
 Now what about the biological interpretation? Check out the "towcab_results/results/pathway_DEGs/DEG_pathway_descriptions.txt" file. This is a print out of each pathway_cluster & which pathways are contained in it sorted alphabetically. Personally, I've found that to be the easiest way to rapidly get to interpration.
