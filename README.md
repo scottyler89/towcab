@@ -8,7 +8,7 @@ date: "07/12/2022"
 
 # Introduction
 
-
+Bloppity bloopity
 
 
 # Installation
@@ -72,11 +72,6 @@ immune.combined <- FindClusters(immune.combined, resolution = 0.5)
 First - we need to have the original integer count matrix (which actually wasn't distributed in their data). But we can reconstruct it with a little bit of digging into the data!
 
 ```
-
-###############
-## import some stuffs for the TOWCAB analysis
-
-
 ## TOWCAB requires the original counts, so we'll need to regenerate those
 # to illustrate how, here's a demo that this is actually the natural log of the
 # counts per 10k normalized version of the data
@@ -117,8 +112,6 @@ Phew - now that we actually have the original count data, we can dig into the (t
 
 
 ```
-
-
 ## now we have all the info we need to run (TO)WCAB analyses!
 ## That's basically the raw expression matrix, the batch info, and the cluster info
 batch_vect <- unlist(immune.combined@meta.data["orig.ident"])
@@ -197,7 +190,7 @@ collated_pathway_analyses<-analyze_all_pathway_results(towcab_res_lists,out_dir,
 
 The first thing we can look at is the collated results of pathway significance:
 ```
-> head(> head(collated_pathway_analyses$deg_pathway_table[,c("correction_method","cluster_id","direction","p_value","term_name")])
+head(collated_pathway_analyses$deg_pathway_table[,c("correction_method","cluster_id","direction","p_value","term_name")])
 #       correction_method cluster_id            direction      p_value
 # 1100       seurat_wcab  cluster_1 lower_in_IMMUNE_CTRL 4.662104e-46
 # 2100       seurat_wcab  cluster_1 lower_in_IMMUNE_CTRL 4.662104e-46
@@ -247,15 +240,10 @@ If we want to check out these results visually, there are a few plots in the out
 Now what about the biological interpretation? Check out the "towcab_results/results/pathway_DEGs/DEG_pathway_descriptions.txt" file. This is a print out of each pathway_cluster & which pathways are contained in it sorted alphabetically. Personally, I've found that to be the easiest way to rapidly get to interpration.
 
 In this case we see:
-* 1:
-** Immune response, interferons, antigen processing/presentation, etc
-* 2: 
-** Proteasome, cell stress, translation (perhaps a bit of replication going on here)
-* 3:
-** Things related to glandular cells, lymphocytes, and germinal centers
-* 4:
-** MHC-II antigen processing, lysosomes, & granules 
-* 5:
-** IRF binding sites in the promoter, and some immune pathways & response to stimuli
+* *1*: Immune response, interferons, antigen processing/presentation, etc
+* *2*: Proteasome, cell stress, translation (perhaps a bit of replication going on here)
+* *3*: Things related to glandular cells, lymphocytes, and germinal centers
+* *4*: MHC-II antigen processing, lysosomes, & granules 
+* *5*: IRF binding sites in the promoter, and some immune pathways & response to stimuli
 
 

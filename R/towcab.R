@@ -209,10 +209,22 @@ par_get_per_cell_percentage<-function(dummy,local_toplology_graph_in, meta_in, d
 }
 
 
-#' @importFrom igraph subgraph
+#' run_towcab_analysis
+#' @description \code{run_towcab_analysis} Performs the full towcab analysis
+#' @param local_temp_mat input matrix for only a single cluster
+#' @param local_meta the meta data frame for only the cells contained in the pertinent cluster. A couple important notes: needs columns called "cell_id" and "label" which are consistent cell_ids across the three inputs, matching the node names in the network, colnames in the matrix, and rownames in the meta. "Label" is the batch ID.
+#' @param local_topology_graph the kNN graph used for clustering (may either be subset of this cluster or the full network)
+#' @param num_boots The number of bootstrap shuffled versions of the kNN used to estimate each cell's null distribution for what that cell's (default=100)
+#' @param abs_z_cut The cutoff of the absolute value of the Z away from the mean for a cell to be excluded as non-overlapping. For example, a cell with a cross-batch connection fraction z-score > 1.5 or < -1.5 away from the bootstrap shuffled edges from the null background (default=1.5)
+#' @param clip_val The lower clip value to include a sample; the upper clip is calculated as 1-clip_val. For example, if a sample doesn't have at least 10% connections across batch, exclude it because it could be a spurios thing that doesn't represent broad patterns. Same at 90%. (default = 0.10)
+#' @return a filtered version of the input matrix and meta containing only the topologically overlapped subset
+#' @importFrom igraph induced_subgraph
 #' @importFrom parallel makeCluster detectCores clusterExport parLapply stopCluster
-do_topology_filter<-function(local_temp_mat, local_meta, local_topology_graph, num_boots=100, abs_z_cut=1.5){
-    local_toplology_graph<-subgraph(local_topology_graph, colnames(local_temp_mat))
+#' @name do_topology_filter
+#' @export
+do_topology_filter<-function(local_temp_mat, local_meta, local_topology_graph, 
+                             num_boots=100, abs_z_cut=1.5, clip_val=0.1){
+    local_toplology_graph<-induced_subgraph(local_topology_graph, colnames(local_temp_mat))
     # print(head(local_meta))
     # print(colnames(local_temp_mat))
     real_percent_host<-get_per_cell_percentage(local_toplology_graph_in=local_toplology_graph,
@@ -251,10 +263,10 @@ do_topology_filter<-function(local_temp_mat, local_meta, local_topology_graph, n
                 include_vect[i]<-FALSE
             }
             ## add some clipping
-            if ( temp_pct < 0.1 ) {
+            if ( temp_pct < clip_val ) {
                 include_vect[i]<-FALSE
             }
-            if (temp_pct > 0.9) {
+            if (temp_pct > (1-clip_val)) {
                 include_vect[i]<-FALSE
             }
         }
@@ -558,7 +570,9 @@ get_null_mat<-function(boots){
 #' @return a list of all results from the towcab analysis
 #' @importFrom Libra run_de
 #' @importFrom stats quantile
-#' @importFrom igraph V
+#' @importFrom igraph V induced_subgraph
+#' @importFrom matrixStats rowMaxs
+#' @importFrom Matrix colSums rowSums
 #' @name run_towcab_analysis
 #' @export
 run_towcab_analysis<-function(exprs, 
@@ -573,8 +587,10 @@ run_towcab_analysis<-function(exprs,
                               topology_filter=TRUE,
                               in_topology_graph=NULL,
                               method_name=""){
+    batch_vect<-factor(batch_vect, levels=unique(as.character(batch_vect)))
+    clust_vect<-factor(clust_vect, levels=unique(as.character(clust_vect)))
     results_list<-list()
-    counts_per_cell<-colSums(exprs)
+    counts_per_cell<-Matrix::colSums(exprs)
     min_express_for_inclusion<-as.integer(unlist(quantile(counts_per_cell,c(min_express_for_inclusion_percentile))))
     keep<-which(counts_per_cell>min_express_for_inclusion)
     message("keeping ",length(keep)," out of ",length(counts_per_cell)," cells for DEG analysis")
@@ -584,7 +600,7 @@ run_towcab_analysis<-function(exprs,
         graph_nodes<-as.character(unlist(V(in_topology_graph)$name))
         percent_vertex_in_keep_cells<-sum(graph_nodes %in% keep_cells)/length(keep_cells)
         message(percent_vertex_in_keep_cells*100,"% of keep_cells were in the input graph")
-        in_topology_graph<-subgraph(in_topology_graph, keep_cells)
+        in_topology_graph<-induced_subgraph(in_topology_graph, keep_cells)
         if (percent_vertex_in_keep_cells==0){
             for (blah in seq(10)){
                 message()
@@ -605,7 +621,7 @@ run_towcab_analysis<-function(exprs,
     if (min_clust_vect==0){
     	clust_vect<-clust_vect+min_clust_vect+1## plus 1 because R does 1 indexing instead of zero...
     }
-    keep_genes<-rownames(exprs)[which(rowSums(exprs)>10)]
+    keep_genes<-rownames(exprs)[which(Matrix::rowSums(exprs)>10)]
     exprs<-exprs[keep_genes,]
     #################################
     #################################
@@ -654,13 +670,15 @@ run_towcab_analysis<-function(exprs,
             if (length(unique(batch_vect[current_clust_idxs]))>1){
                 ## randomly assign replicates
                 replicate<-sample(seq(num_pseudo_replicates),length(current_clust_idxs),replace=TRUE)
-                meta<- cbind(clust_cell_names, replicate, rep(clust_id,length(current_clust_idxs)), batch_vect[current_clust_idxs])
                 ## looks weird, but Libra does DE across "label" so that's where we'll put the batch ID
-                colnames(meta)<-c("cell_id", "replicate", "cell_type", "label")
-                meta<-as.data.frame(meta)
+                meta<- data.frame(cell_id=clust_cell_names, 
+                                  replicate=replicate, 
+                                  cell_type=rep(clust_id,length(current_clust_idxs)),
+                                  label= as.character(batch_vect)[current_clust_idxs])
+                meta[,"label"]<-factor(meta[,"label"],levels=unique(unlist(as.character(meta[,"label"]))))
                 # message("meta head:")
                 #print(head(meta))
-                print("trying to set rownames for meta")
+                #print("trying to set rownames for meta")
                 cell_table<-table(clust_cell_names)
                 if (max(cell_table)>1){
                     print(cell_table[which(cell_table>1)])
@@ -669,7 +687,7 @@ run_towcab_analysis<-function(exprs,
                 }
                 #print(cbind(make.names(clust_cell_names),clust_cell_names))
                 rownames(meta)<-clust_cell_names
-                print("finished setting rownames for meta")
+                #print("finished setting rownames for meta")
                 cross_tab<-table(meta$cell_type,meta$label)
                 print(cross_tab)
                 ## make sure we have enough cells to do the DE, otherwise it'll throw an error
@@ -677,13 +695,13 @@ run_towcab_analysis<-function(exprs,
                 #####################
                 ## only include batches that have >9 cells
                 min_cells_per_batch <- num_pseudo_replicates*min_cells_per_pseudo_rep
-                message("min_cells_per_batch:",min_cells_per_batch)
-                batches_with_enough <- colnames(cross_tab)[which(colSums(cross_tab)>(min_cells_per_batch))]
+                # message("min_cells_per_batch:",min_cells_per_batch)
+                batches_with_enough <- colnames(cross_tab)[which(Matrix::colSums(cross_tab)>(min_cells_per_batch))]
                 batches_without_enough <- colnames(cross_tab)[colnames(cross_tab) %!in% batches_with_enough]
-                message("batches with enough:")
-                print(batches_with_enough)
-                message("batches without enough:")
-                print(batches_without_enough)
+                # message("batches with enough:")
+                # print(batches_with_enough)
+                # message("batches without enough:")
+                # print(batches_without_enough)
                 meta <- meta[which(meta$label %in% batches_with_enough),]
                 keep_cells <- as.character(meta$cell_id)
                 ## make sure the cells are lined up
@@ -699,21 +717,21 @@ run_towcab_analysis<-function(exprs,
                     ## make sure the matrix is dense & subset
                     ## now we'll actually run the DEG analysis
                     blah_mat<-as.matrix(exprs[,keep_cells])
-                    message("minimum colSums:")
-                    print(min(colSums(blah_mat)))
+                    # message("minimum colSums:")
+                    # print(min(colSums(blah_mat)))
                     message("min_express_for_inclusion: ",min_express_for_inclusion)
                     temp_mat <- as.matrix(local_downsample_mat(blah_mat,
                                                          target=as.integer(unlist(min_express_for_inclusion)),
                                                          quiet=TRUE,
                                                          do_parallel=TRUE))
-                    results_list[[clust_id]][["genes_expressed_in_clust"]]<-rownames(temp_mat)[which(rowSums(temp_mat)>10)]
+                    results_list[[clust_id]][["genes_expressed_in_clust"]]<-rownames(temp_mat)[which(Matrix::rowSums(temp_mat)>10)]
                     message("      background for clust :",length(results_list[[clust_id]][["genes_expressed_in_clust"]]))
                     offset_list<-offset_reps(meta)
                     meta<-offset_list[["meta"]]
                     offset_lookup<-offset_list[["batch_rep_lookup_table"]]
-                    print(head(meta))
-                    print(names(meta))
-                    print(summary(meta))
+                    # print(head(meta))
+                    # print(names(meta))
+                    # print(summary(meta))
                     ## final sanity check
                     keep_cells<-intersect(as.character(meta$cell_id),colnames(temp_mat))
                     meta<-meta[keep_cells,]
