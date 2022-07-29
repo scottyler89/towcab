@@ -571,7 +571,7 @@ get_null_mat<-function(boots){
 #' @importFrom Libra run_de
 #' @importFrom stats quantile
 #' @importFrom igraph V induced_subgraph
-#' @importFrom matrixStats rowMaxs
+#' @importFrom matrixStats rowMaxs rowMins
 #' @importFrom Matrix colSums rowSums
 #' @name run_towcab_analysis
 #' @export
@@ -1577,8 +1577,94 @@ plot_winClust_acrossBatch_DEG_results<-function(sig_res,out_dir, method_colors=N
 
 
 
+#################################################################################
 
 
+get_clust_sig_list<-function(p_table, marker_list, alpha_cutoff=1e-6){
+    is_sig_clust_list<-list()
+    for (cell_type in names(marker_list)){
+        is_sig_clust_list[[cell_type]]<-list()
+        for (temp_gene in marker_list[[cell_type]]){
+            temp_clusts_sig<-colnames(p_table)[which(p_table[temp_gene,]<alpha_cutoff)]
+            is_sig_clust_list[[cell_type]][[temp_gene]]<-temp_clusts_sig
+        }
+    }
+    return(is_sig_clust_list)
+}
+
+
+unpack_clust_results<-function(temp_res){
+    all_clusts<-c()
+    for (gene in names(temp_res)){
+        all_clusts<-c(all_clusts,unlist(temp_res[[gene]]))
+    }
+    return(unique(all_clusts))
+}
+
+
+check_cluster_matches<-function(cell_type_1, cell_type_2){
+    type_1_clusts<-unpack_clust_results(cell_type_1)
+    type_2_clusts<-unpack_clust_results(cell_type_2)
+    cluster_matches<-intersect(type_1_clusts, type_2_clusts)
+    return(cluster_matches)
+}
+
+get_single_overlap<-function(mark_1_res, clust){
+    out_genes<-c()
+    for (temp_gene_mark_1 in names(mark_1_res)){
+        if (clust %in% mark_1_res[[temp_gene_mark_1]]){
+            out_genes<-c(out_genes,temp_gene_mark_1)
+        }
+    }
+    return(out_genes)
+}
+
+get_overlapping_genes<-function(mark_1_res,
+                                mark_2_res,
+                                clust){
+    out_genes<-get_single_overlap(mark_1_res, clust)
+    out_genes<-c(out_genes, get_single_overlap(mark_2_res, clust))
+    return(out_genes)
+}
+
+
+
+#' run_towcab_analysis
+#' @description \code{identify_any_mixed_clusters} Performs the mixed marker gene analysis
+#' @param p_table found in tow_cab_results$p_table.
+#' @param marker_list a list of cell-type or state marker genes that should not be topologically overlapped.
+#' @param alpha_cutoff the significance cutoff
+#' @return a list of lists of lists of results. First level is cell-type-1 (noted by marker genes), second level is cell-type-2, and third level is cluster, yielding a list genes that were markers for cell-type-1 and cell-type-2 that were both significantly differentially expressed across batches in the given cluster.
+#' @name identify_any_mixed_clusters
+#' @export
+identify_any_mixed_clusters<-function(p_table, marker_list, alpha_cutoff=1e-6){
+    is_sig_list<-get_clust_sig_list(p_table, marker_list, alpha_cutoff=alpha_cutoff)
+    mixed_list<-list()
+    cell_types<-names(marker_list)
+    for (i in seq(1,length(cell_types))){
+        mixed_list[[cell_types[i]]]<-list()
+        for (j in seq(1,length(cell_types))){
+            if (i!=j){
+                mixed_list[[cell_types[i]]][[cell_types[j]]]<-list()
+                overlapping_clusters<-check_cluster_matches(is_sig_list[[cell_types[i]]],is_sig_list[[cell_types[j]]])
+                if (length(overlapping_clusters)>0){
+                    message(cell_types[i]," ",cell_types[j])
+                    print(overlapping_clusters)
+                    for (clust in overlapping_clusters){
+                        message("  ",clust)
+                        mixed_list[[cell_types[i]]][[cell_types[j]]][[clust]]<-get_overlapping_genes(is_sig_list[[cell_types[i]]],
+                                                                                                     is_sig_list[[cell_types[j]]],
+                                                                                                     clust)
+                        message("      ",paste0(mixed_list[[cell_types[i]]][[cell_types[j]]][[clust]],sep=" "))
+                    }
+                }
+            }
+        }
+    }
+    return(mixed_list)
+}
+
+#################################################################################
 
 
 

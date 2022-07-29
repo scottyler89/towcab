@@ -71,13 +71,15 @@ immune.combined <- FindClusters(immune.combined, resolution = 0.5)
 
 First - we need to have the original integer count matrix (which actually wasn't distributed in their data). But we can reconstruct it with a little bit of digging into the data!
 
-```
+```r
 ## TOWCAB requires the original counts, so we'll need to regenerate those
 # to illustrate how, here's a demo that this is actually the natural log of the
 # counts per 10k normalized version of the data
 colSums(as.matrix(exp(1)**immune.combined@assays$RNA[,1:10]-1))
+
 # so let's undo that
 exprs<-as.matrix(exp(1)**immune.combined@assays$RNA[,]-1)
+
 ## now we have to figure out what the "loading factors" were for each column.
 ## to do this we assume that the minimum non-zero count was a count of 1.
 ## Pretty reasonable I think. Never seen a UMI based dataset this wasn't true for.
@@ -93,8 +95,11 @@ for (i in seq(1,dim(exprs)[2])){
 print(exprs[1:10,1:10])
 post_unnorm_nz_mins<-apply(exprs,2,nz_col_min)
 post_unnorm_colsums<-colSums(exprs)
-## except (on my machine at least...) changing it to integer mode 
-## changes the damn numbers! Why oh why R... Shall I count the ways in which I hate thee
+
+## except right now it's stored as floats instead of integers (on my machine at least...).
+## The downsampling step will throw an error if we don't fix this.
+## When R just straight up coerces to int from float, it actually gets it wrong sometimes!
+## To fix this we have to make a new matrix and make sure it does the coersion right by rounding (even though there're already integers)
 final_exprs<-matrix(data=exprs,nrow=dim(exprs)[1],ncol=dim(exprs)[2])
 colnames(final_exprs)<-colnames(exprs)
 rownames(final_exprs)<-rownames(exprs)
@@ -111,7 +116,7 @@ for (i in seq(1,dim(final_exprs)[2])){
 Phew - now that we actually have the original count data, we can dig into the (to)wcab analyses! First we'll do just a within cluster across batch (wcab) analysis.
 
 
-```
+```r
 ## now we have all the info we need to run (TO)WCAB analyses!
 ## That's basically the raw expression matrix, the batch info, and the cluster info
 batch_vect <- unlist(immune.combined@meta.data["orig.ident"])
@@ -131,7 +136,7 @@ wcab_res<-run_towcab_analysis(final_exprs,
 We can also do the same analysis, but specifically looking at the toplologically overlapping areas of the dataset! Note that since these two datasets get extremely well mixed using the above integration methods, the results should come out pretty similar.
 
 
-```
+```r
 ## now if we want to do the full TOWCAB analysis, we need the kNN as well!
 # double check the name of the graphs
 print(names(immune.combined@graphs))
@@ -170,7 +175,7 @@ As I mentioned before, since these were integrated via Seurat, the topologies ge
 
 _With the code below, you can compare them, but if you want to compare different methods (liger, harmony, downsampling, etc), you can make a list with the method name corresponding to that methods (to)cab results object._
 
-```
+```r
 ## now we can get a high-level overview or compare different methods
 towcab_res_lists<-list()
 towcab_res_lists[["seurat_wcab"]]<-wcab_res
@@ -189,7 +194,7 @@ collated_pathway_analyses<-analyze_all_pathway_results(towcab_res_lists,out_dir,
 ## interpreting the results
 
 The first thing we can look at is the collated results of pathway significance:
-```
+```r
 head(collated_pathway_analyses$deg_pathway_table[,c("correction_method","cluster_id","direction","p_value","term_name")])
 #       correction_method cluster_id            direction      p_value
 # 1100       seurat_wcab  cluster_1 lower_in_IMMUNE_CTRL 4.662104e-46
@@ -218,7 +223,7 @@ The colors correspond to the pathway clusters (not the clustering of the cells!)
 
 Now how do we interpret them? Well we can look back at that returned object & see the number of pathways and percentage of pathways that within the pathway clusters that are significantly different:
 
-```
+```r
 print(head(collated_pathway_analyses$path_sig_res))
 #  correction_method pathway_cluster num_sig_pathways percent_sig_pathways
 #1       seurat_wcab               1              300            0.9316770
@@ -245,5 +250,47 @@ In this case we see:
 * *3*: Things related to glandular cells, lymphocytes, and germinal centers
 * *4*: MHC-II antigen processing, lysosomes, & granules 
 * *5*: IRF binding sites in the promoter, and some immune pathways & response to stimuli
+
+## Identification of locations with errant integrations
+
+We can also look at specific genes of interest that should not be topologically overlapped using the identify_any_mixed_clusters function. This particular run below is more for illustrative purposes. See our manuscript to see how we used this function to identify the errant integration of urothelial- and B-cells.
+
+```r
+## first make a list of cell-type or -state markers that should not be mixed together
+
+## since this is a silly example with known biological differences, we'll look for the mixing of inflammatory cytokines in T and B cells, recognizing that the cytokines very well may belong in these populations. It's only for illustrative purposes. But this is the function that led us to identify the errant mixture of urothelial cells and B-cells in our manuscript.
+
+marker_list<-list()
+marker_list[["T-cell"]]<-c("CD4","CD3E","CD8A")
+marker_list[["B-cell"]]<-c("CD79A","CD79B","CD19","VPREB3")
+marker_list[["Macrophage"]]<-c("CD14")
+marker_list[["inflam"]]<-c("IFNG", "IL1B", "CXCL10", "IL8")
+
+
+mixed_results<-identify_any_mixed_clusters(towcab_res$p_table, marker_list, alpha_cutoff = 1e-3)## default is super-conservative at 1e-6
+
+## Here we se that the there are 3 clusters that show heterogeneous expression across batches for expression of CD14, IL1B, and CXCL10
+# 
+# Macrophage inflam
+# [1] "cluster_0" "cluster_8" "cluster_3"
+#   cluster_0
+#       CD14 IL1B CXCL10 IL8 
+#   cluster_8
+#       CD14 IL1B CXCL10 IL8 
+#   cluster_3
+#       CD14 IL1B CXCL10 IL8 
+# inflam Macrophage
+# [1] "cluster_0" "cluster_8" "cluster_3"
+#   cluster_0
+#       IL1B CXCL10 IL8 CD14 
+#   cluster_8
+#       IL1B CXCL10 IL8 CD14 
+#   cluster_3
+#       IL1B CXCL10 IL8 CD14 
+
+
+
+```
+
 
 
