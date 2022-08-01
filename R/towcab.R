@@ -593,7 +593,9 @@ run_towcab_analysis<-function(exprs,
     counts_per_cell<-Matrix::colSums(exprs)
     #########################################
     if (counts_per_cell[1]!=sum(as.integer(round(exprs[,1],0)))){
-        message("Have to properly convert this to an integer matrix since it's stored as float & R somehow doesn't do the coersion safely natively. Will need to conver to a dense matrix as an intermediate...")
+        message("Make sure that this is the original count matrix! It's okay if it is & you see this message. R doesn't handle float to integer coersion accurately, so we're doing it carefully here. But this really can't be a latent dimension or log transfromed or normalized data - it has to be the original count matrix.")
+        message("")
+        message("Convert exprs to an integer matrix since now it's stored as float & R somehow doesn't do the coersion safely natively. Will need to conver to a dense matrix as an intermediate - sorry for the memory overhead! If you want to avoid this step, you can do the conversion yourself beforehand, but you'll have to be extremely careful that the output looks how you expect.")
         exprs<-as.matrix(exprs)
         gc()
         for (i in seq(1,dim(exprs)[2])){
