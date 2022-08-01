@@ -96,21 +96,6 @@ print(exprs[1:10,1:10])
 post_unnorm_nz_mins<-apply(exprs,2,nz_col_min)
 post_unnorm_colsums<-colSums(exprs)
 
-## except right now it's stored as floats instead of integers (on my machine at least...).
-## The downsampling step will throw an error if we don't fix this.
-## When R just straight up coerces to int from float, it actually gets it wrong sometimes!
-## To fix this we have to make a new matrix and make sure it does the coersion right by rounding (even though there're already integers)
-final_exprs<-matrix(data=exprs,nrow=dim(exprs)[1],ncol=dim(exprs)[2])
-colnames(final_exprs)<-colnames(exprs)
-rownames(final_exprs)<-rownames(exprs)
-mode(final_exprs)<-"integer"
-## ugh.. go and fix it
-for (i in seq(1,dim(final_exprs)[2])){
-  ## I checked, there aren't any non-integers, but in the coersion from float to int
-  ## R still screws it up... my hair is falling out...
-  final_exprs[,i]<-as.integer(round(exprs[,i],0))
-}
-
 ```
 
 Phew - now that we actually have the original count data, we can dig into the (to)wcab analyses! First we'll do just a within cluster across batch (wcab) analysis.
@@ -131,6 +116,7 @@ wcab_res<-run_towcab_analysis(final_exprs,
                               topology_filter=FALSE,
                               species="hsapiens")## these are gprofiler codes
 
+## A side-note that I've noticed is that R doesn't actually correctly handly float to integer conversion correctly! Sometimes adding 1 or subtracting 1 seemingly arbitrarily. This leads to errors since towcab assumes it's reading the integer count matrix. So right after running, you see a warning saying that it's doing the coersion to integers safely using a custom little loop I wrote. I honestly have no idea why R is so finiky with this. It seems like the sort of thing that might actually be injecting lots of weird noise that people might not realize, even with something as simple as calculating the colSums - you get the wrong answer... R is strange...
 ```
 
 We can also do the same analysis, but specifically looking at the toplologically overlapping areas of the dataset! Note that since these two datasets get extremely well mixed using the above integration methods, the results should come out pretty similar.

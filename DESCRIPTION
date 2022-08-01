@@ -5,6 +5,7 @@ Version: 0.99.0
 Authors@R: c(
 	person('Scott', 'Tyler', NULL, 'scottyler89@gmail.com', c('cre', 'aut'), comment=c(ORCID = "0000-0002-7683-6686")))
 Description: This tool is for performing differential expression within clusters, across batches, and optionally in only topologically overlapping regions between the batches
+Remotes: github::neurorestore/Libra
 Imports: Libra, grDevices, igraph, ggplot2, qgraph, cowplot, parallel, gprofiler2, stats, data.table, stringr, pbapply, RColorBrewer, stats
 Suggests: knitr, rmarkdown
 License: GPL-3

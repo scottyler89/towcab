@@ -572,7 +572,7 @@ get_null_mat<-function(boots){
 #' @importFrom stats quantile
 #' @importFrom igraph V induced_subgraph
 #' @importFrom matrixStats rowMaxs rowMins
-#' @importFrom Matrix colSums rowSums
+#' @importFrom Matrix colSums rowSums Matrix
 #' @name run_towcab_analysis
 #' @export
 run_towcab_analysis<-function(exprs, 
