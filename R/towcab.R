@@ -591,6 +591,20 @@ run_towcab_analysis<-function(exprs,
     clust_vect<-factor(clust_vect, levels=unique(as.character(clust_vect)))
     results_list<-list()
     counts_per_cell<-Matrix::colSums(exprs)
+    #########################################
+    if (counts_per_cell[1]!=sum(as.integer(round(exprs[,1],0)))){
+        message("Have to properly convert this to an integer matrix since it's stored as float & R somehow doesn't do the coersion safely natively. Will need to conver to a dense matrix as an intermediate...")
+        exprs<-as.matrix(exprs)
+        gc()
+        for (i in seq(1,dim(exprs)[2])){
+            ## I checked, there aren't any non-integers, but in the coersion from float to int
+            ## R still screws it up... my hair is falling out...
+            exprs[,i]<-as.integer(round(exprs[,i],0))
+        }
+        exprs<-Matrix(exprs,sparse=TRUE)
+        gc()
+    }
+    #########################################
     min_express_for_inclusion<-as.integer(unlist(quantile(counts_per_cell,c(min_express_for_inclusion_percentile))))
     keep<-which(counts_per_cell>min_express_for_inclusion)
     message("keeping ",length(keep)," out of ",length(counts_per_cell)," cells for DEG analysis")
@@ -1585,8 +1599,12 @@ get_clust_sig_list<-function(p_table, marker_list, alpha_cutoff=1e-6){
     for (cell_type in names(marker_list)){
         is_sig_clust_list[[cell_type]]<-list()
         for (temp_gene in marker_list[[cell_type]]){
-            temp_clusts_sig<-colnames(p_table)[which(p_table[temp_gene,]<alpha_cutoff)]
-            is_sig_clust_list[[cell_type]][[temp_gene]]<-temp_clusts_sig
+            if (temp_gene %in% rownames(p_table)){
+                temp_clusts_sig<-colnames(p_table)[which(p_table[temp_gene,]<alpha_cutoff)]
+                is_sig_clust_list[[cell_type]][[temp_gene]]<-temp_clusts_sig
+            } else {
+                message(paste0(temp_gene,"not found in dataset"))
+            }
         }
     }
     return(is_sig_clust_list)
