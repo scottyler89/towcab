@@ -500,7 +500,7 @@ do_whole_dataset_meta_analysis<-function(deg_table,
     geom_mean_sig_vect<-c()
     all_pathway_list[["clusters"]]<-list()
     for (clust in seq(1,dim(deg_table)[2])){
-        clust_id<-paste("cluster",clust,sep="_")
+        clust_id<-paste("cluster",as.character(clust),sep="_")
         message("working on clust: ",clust)
         temp_degs<-rownames(deg_table)[which(deg_table[,clust]==TRUE)]
         up_genes <- rownames(deg_table)[which(avg_logFC_table[,clust] > 0 )]
@@ -510,9 +510,16 @@ do_whole_dataset_meta_analysis<-function(deg_table,
         down_genes <- intersect(down_genes,temp_degs)
         #############
         ## get the res
-        up_res <- get_single_path(up_genes, dict_with_bg[[clust_id]][["genes_expressed_in_clust"]], species=species)
-        down_res <- get_single_path(down_genes, dict_with_bg[[clust_id]][["genes_expressed_in_clust"]], species=species)
-        up_or_down_res <- get_single_path(temp_degs, dict_with_bg[[clust_id]][["genes_expressed_in_clust"]], species=species)
+        temp_clust_bg<-dict_with_bg[[clust_id]][["genes_expressed_in_clust"]]
+        if (length(temp_clust_bg)==0){
+            ## sometimes things get messed up with factors, so can try this
+            message("had trouble finding the background from this cluster list:")
+            message(paste(names(dict_with_bg),collapse=" "))
+            temp_clust_bg<-dict_with_bg[[as.character(clust)]][["genes_expressed_in_clust"]]
+        }
+        up_res <- get_single_path(up_genes, temp_clust_bg, species=species)
+        down_res <- get_single_path(down_genes, temp_clust_bg, species=species)
+        up_or_down_res <- get_single_path(temp_degs, temp_clust_bg, species=species)
         temp_paths_res<-merge_up_down(up_res, down_res, up_or_down_res, factor_levels)
         num_paths_sig<-temp_paths_res[[1]]
         geom_mean_sig<-temp_paths_res[[2]]
@@ -584,7 +591,7 @@ run_towcab_analysis<-function(exprs,
                               num_pseudo_replicates=3,
                               min_cells_per_pseudo_rep=3,
                               species='mmusculus',
-                              topology_filter=TRUE,
+                              topology_filter=FALSE,
                               in_topology_graph=NULL,
                               method_name=""){
     batch_vect<-factor(batch_vect, levels=unique(as.character(batch_vect)))

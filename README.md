@@ -8,7 +8,24 @@ date: "07/12/2022"
 
 # Introduction
 
-Bloppity bloopity
+TOWCAB stands for Topologically Overlapped Within Cluster Across Batch. And that's excatly what it does!
+It goes within each cluster, and finds regions of the within-cluster topology that look "entropically"
+mixed together across pairwise batches. Then it performs differential expression on a downsampled version, using the LIBRA package's approach of pseudo-bulking.
+
+
+## When towcab should be used: ##
+* If you've done some form of topological alignment/batch-correction and want to perform an analysis that has the underlying assumption that topologically intermingled cells are biologically similar.
+* Examples include pseudotime analysis on aligned topologies
+* Trying to find biological heterogeneity within a topology to benchmark alignment/batch-correction algorithms
+
+## When wcab should be used: ##
+* If you've integrated batches & are interpreting clusters as homogenous populations. 
+* Example: scRNAseq on a KO vs WT & you want to say that the cluster composition is very similar, so there is not much of a difference. This might not actually be the case, because you could have within cluster DEGs across your batches. WCAB will tell you that!
+* If you've done an integration on samples that you *know* are biologically different, and expect that some aspect of cell-state was erased across batch, but you want to directly measure and quantify which aspects of cell identity are differentially expressed. This is what we show in the example below; towcab is also a useful technique here, just getting you more fine grained results (although less powered due to the toplogical filtering).
+
+## When towcab and wcab don't make sense to use ##
+* If you're looking at datasets that were generated across species or technologies. In these situations, doing differential expression to compare across these doesn't actually make sense, so you won't get much out of it.
+* For example, because of the wildly different distributions that you get between full length sequencing and UMI counts, you would get uninteligable results trying to do DEG analysis across batches.
 
 
 # Installation
